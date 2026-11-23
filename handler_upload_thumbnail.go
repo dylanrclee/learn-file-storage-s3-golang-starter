@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -51,6 +52,8 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusInternalServerError, "Error reading thumbnail file bytes", err)
 		return
 	}
+	image_base64 := base64.StdEncoding.EncodeToString(image_bytes)
+	image_base64_url := fmt.Sprintf("data:%s;base64,%s", media_type, image_base64)
 
 	video_data, err := cfg.db.GetVideo(videoID)
 	if err != nil {
@@ -63,18 +66,10 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	thumbnail_entry := thumbnail{
-		data:      image_bytes,
-		mediaType: media_type,
-	}
-
-	videoThumbnails[videoID] = thumbnail_entry
-
-	thumburl := fmt.Sprintf("http://localhost:%v/api/thumbnails/%s", cfg.port, videoID)
-	video_data.ThumbnailURL = &thumburl
+	video_data.ThumbnailURL = &image_base64_url
 	err = cfg.db.UpdateVideo(video_data)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error updating video", err)
+		respondWithError(w, http.StatusInternalServerError, "Error updating video data", err)
 		return
 	}
 
